@@ -109,6 +109,12 @@ path = ".."
 uuid = "777c4786-024f-11e9-21a3-85d5d4106250"
 version = "0.1.0"
 
+[[ClimateMachine]]
+deps = ["Adapt", "ArgParse", "CLIMAParameters", "CUDAapi", "CUDAdrv", "CUDAnative", "Combinatorics", "Coverage", "CuArrays", "Dates", "DelimitedFiles", "Distributions", "DocStringExtensions", "DoubleFloats", "FileIO", "ForwardDiff", "GPUifyLoops", "GaussQuadrature", "JLD2", "KernelAbstractions", "LazyArrays", "LinearAlgebra", "Literate", "Logging", "MPI", "NCDatasets", "OrderedCollections", "Pkg", "Printf", "Random", "RootSolvers", "SpecialFunctions", "StaticArrays", "Statistics", "WriteVTK"]
+path = ".."
+uuid = "777c4786-024f-11e9-21a3-85d5d4106250"
+version = "0.1.0"
+
 [[CodecZlib]]
 deps = ["TranscodingStreams", "Zlib_jll"]
 git-tree-sha1 = "ded953804d019afa9a3f98981d99b33e3db7b6da"
