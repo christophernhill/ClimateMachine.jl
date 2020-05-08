@@ -114,3 +114,95 @@ let
 
     @test x ≈ Array(d_x)
 end
+
+let
+    # Check if views work in the LU kernels
+
+    Nq = 2
+    ABnstate = 3
+    xbnstate = 7
+    nvertelem = 5
+    nhorzelem = 4
+    eband = 2
+
+    FT = Float64
+    m = n = Nq * ABnstate * nvertelem
+    p = q = Nq * ABnstate * eband - 1
+
+    Random.seed!(1234)
+    AB = rand(FT, Nq, Nq, p + q + 1, n, nhorzelem)
+    AB[:, :, q + 1, :, :] .+= 10 # Make A's diagonally dominate
+
+    Random.seed!(5678)
+    x = rand(FT, Nq, Nq, Nq, xbnstate, nvertelem, nhorzelem)
+    b = copy(x)
+
+    restricted_x = @view x[:, :, :, 1:ABnstate, :, :]
+    restricted_b = @view b[:, :, :, 1:ABnstate, :, :]
+
+    perm = (4, 3, 5, 1, 2, 6)
+    xp = reshape(PermutedDimsArray(restricted_x, perm), n, Nq, Nq, nhorzelem)
+    bp = reshape(PermutedDimsArray(restricted_b, perm), n, Nq, Nq, nhorzelem)
+
+    groupsize = (Nq, Nq)
+    ndrange = (Nq, Nq, nhorzelem)
+
+    d_F = ArrayType(AB)
+
+    event = Event(device)
+    event = band_lu_kernel!(device, groupsize, ndrange)(
+        d_F,
+        Val(Nq),
+        Val(Nq),
+        Val(Nq),
+        Val(ABnstate),
+        Val(nvertelem),
+        Val(nhorzelem),
+        Val(eband),
+        dependencies = (event,),
+    )
+    wait(device, event)
+
+    for h in 1:nhorzelem, j in 1:Nq, i in 1:Nq
+        B = AB[i, j, :, :, h]
+        G = band_to_full(B, p, q)
+
+        bp[:, i, j, h] .= G * xp[:, i, j, h]
+    end
+
+    nelem = nvertelem * nhorzelem
+    restricted_b = reshape(restricted_b, Nq * Nq * Nq, ABnstate, nelem)
+    restricted_x = reshape(restricted_x, Nq * Nq * Nq, ABnstate, nelem)
+
+    d_x = ArrayType(b)
+    restricted_d_x = @view d_x[:, :, :, 1:ABnstate, :, :]
+    restricted_d_x = reshape(restricted_d_x, Nq * Nq * Nq, ABnstate, nelem)
+
+    event = Event(device)
+    event = band_forward_kernel!(device, groupsize, ndrange)(
+        restricted_d_x,
+        d_F,
+        Val(Nq),
+        Val(Nq),
+        Val(ABnstate),
+        Val(nvertelem),
+        Val(nhorzelem),
+        Val(eband),
+        dependencies = (event,),
+    )
+
+    event = band_back_kernel!(device, groupsize, ndrange)(
+        restricted_d_x,
+        d_F,
+        Val(Nq),
+        Val(Nq),
+        Val(ABnstate),
+        Val(nvertelem),
+        Val(nhorzelem),
+        Val(eband),
+        dependencies = (event,),
+    )
+    wait(device, event)
+
+    @test x ≈ Array(d_x)
+end
