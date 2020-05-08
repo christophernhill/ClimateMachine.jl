@@ -1,86 +1,73 @@
 # Installing ClimateMachine
 
-Installation of ClimateMachine can be divided into 3 parts:
+### Install Julia
 
-1. Installation of Julia (1.3.1)
-2. Installation of MPI
-3. Installation of ClimateMachine
+The current release of `ClimateMachine` is verified to work with
+Julia 1.3.1. Download it for your platform from [Julia's old
+releases](https://julialang.org/downloads/oldreleases/#v131_dec_30_2019).
 
-## Installation of Julia (1.3.1)
+### Install MPI
 
-ClimateMachine uses the Julia programming language; however, at the current time, certain dependencies are only available on Julia 1.3, so please download the download the appropriate binary for your platform from [Julia's old releases](https://julialang.org/downloads/oldreleases/#v131_dec_30_2019).
+If you're running on a cluster, MPI is likely installed -- check with your
+IT staff.
 
-## Installation of MPI
+Otherwise, download and install one of the following MPI implementations
+for your platform:
 
-The Message Passing Interface (MPI) is a ClimateMachine dependency that allows users to send messages between distributed computing devices.
-There are multiple versions of MPI available, the most common of which are:
+- Windows -- [Microsoft MPI](https://docs.microsoft.com/en-us/message-passing-interface/microsoft-mpi).
+- MacOS -- [Open MPI](https://www.open-mpi.org/) or
+[MPICH](https://www.mpich.org/), available on [Homebrew](https://brew.sh/)
+and [MacPorts](https://www.macports.org/)
+- Linux -- [OpenMPI](https://www.open-mpi.org/) or
+[MPICH](https://www.mpich.org/), available in package managers
 
-- [Open MPI](https://www.open-mpi.org/)
-- [MPICH](https://www.mpich.org/)
-- [Microsoft MPI](https://docs.microsoft.com/en-us/message-passing-interface/microsoft-mpi)
-- [SpectrumMPI](https://www.ibm.com/us-en/marketplace/spectrum-mpi) (for POWER systems).
-
-If you are using a cluster, it is very likely that a version of MPI is already installed on your system, and this can probably be queried with `module avail` or some similar command for your system.
-
-If you are working from a desktop or laptop computer or are maintaining a system without MPI, here are our recommendation for desktop users:
-
-- Windows -- [Microsoft MPI](https://docs.microsoft.com/en-us/message-passing-interface/microsoft-mpi)
-- MacOS -- [Open MPI](https://www.open-mpi.org/) or [MPICH](https://www.mpich.org/), which can be installed via a package manager like [homebrew](https://brew.sh/) or installing manually
-- Linux -- [OpenMPI](https://www.open-mpi.org/) or [MPICH](https://www.mpich.org/), which are available from package managers and user repos
-
-Once you have MPI running on your machine, please add the `MPI` package in Julia with
+Then add [`MPI.jl`](https://github.com/JuliaParallel/MPI.jl) to Julia
+using the built-in package manager (press `]` at the Julia prompt):
 
 ```julia
-Pkg> add MPI
-Pkg> build MPI
-Pkg> test MPI
+julia> ]
+(v1.3) pkg> add MPI
 ```
 
-If all the tests pass, you are good to go!
+The package should be installed and built without errors. You can verify
+that all is well with:
 
-If you are having problems building MPI.jl then most likely you need to set the environment variable `JULIA_MPI_PATH`.
- Additionally, if your MPI is not installed in a single place, e.g., MPI from macports in OSX, you may need to set `JULIA_MPI_INCLUDE_PATH` and `JULIA_MPI_LIBRARY_PATH`; for macports installs of MPI these would be subdirectories in `/opt/local/include` and `/opt/local/lib`.
+```julia
+julia> ]
+(v1.3) pkg> test MPI
+```
 
-If issues persist, there might be an issue with the MPI version installed on your device or a problem with the Julia MPI package.
-If you suspect there may be a problem with the Julia MPI package, please [create an issue on GitHub](https://github.com/JuliaParallel/MPI.jl)
+If you are having problems, see the
+[`MPI.jl` documentation](https://juliaparallel.github.io/MPI.jl/stable/configuration.html)
+for help.
 
-## Installation of ClimateMachine
+### Install `ClimateMachine`
 
-As of now, ClimateMachine is not registered as an official Julia package, so you will need to download [the source](https://github.com/CliMA/ClimateMachine.jl.git) with a command, such as:
+Download the `ClimateMachine` [source](https://github.com/CliMA/ClimateMachine.jl.git)
+(you will need [`Git`](https://git-scm.com/):
 
 ```
 git clone https://github.com/CliMA/ClimateMachine.jl.git
 ```
 
-Once on your machine, you will need to run ClimateMachine with
+Install all the Julia packages required by `ClimateMachine` by running
 ```
-julia --project=@. -e "using Pkg; Pkg.instantiate(); Pkg.API.precompile()"
+julia --project -e 'using Pkg; Pkg.instantiate(); Pkg.API.precompile()'
 ```
-To test your ClimateMachine installation, please run
-```
-julia --project=@. $CLIMATEMACHINE_HOME/test/runtests.jl
-```
-where `$CLIMATEMACHINE_HOME` is the path to the base ClimateMachine directory.
+from the `ClimateMachine.jl` directory.
 
-From here, you can run any of the tutorials.
-For example, if you would like to run the dry Rayleigh Bernard tutorial, you might run
-
-```julia
-julia> include("tutorials/Atmos/dry_rayleigh_benard.jl")
+You can verify your `ClimateMachine` installation by running
 ```
-
-or, from outside the REPL, in the `ClimateMachine.jl/` directory:
-
+julia --project test/runtests.jl
 ```
-julia --project=. tutorials/Atmos/dry_rayleigh_benard.jl
+from the `ClimateMachine.jl` directory. This will take a while!
+
+You are now ready to run one of the tutorials. For instance, the dry
+Rayleigh Benard tutorial:
+```
+julia --project tutorials/Atmos/dry_rayleigh_benard.jl
 ```
 
-ClimateMachine will default to running on the GPU on a GPU-enabled system.
-To run ClimateMachine on the CPU run set the environment variable `CLIMATEMACHINE_GPU` to `false`.
-This can be done in the Julia REPL with:
-
-```julia
-julia> ENV["CLIMATEMACHINE_GPU"] = true
-```
-
-Otherwise, you can initialize ClimateMachine without a GPU with the `ClimateMachine.init(disable_gpu=true)` command or set the environmental variable locally.
+`ClimateMachine` is CUDA-enabled and will use GPU(s) if available. To
+run on the CPU, set the environment variable `CLIMATEMACHINE_GPU` to
+`false`.

@@ -3,7 +3,6 @@
 ####
 
 how_to_guides = Any[
-    "Home" => "HowToGuides/Contributing/CONTRIBUTING.md",
     "Arrays" => Any[
     # "Home" => "HowToGuides/Arrays/index.md"
     ],
