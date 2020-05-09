@@ -148,6 +148,10 @@ function band_forward!(Q, A, dg::DGModel)
     nvertelem = topology.stacksize
     nhorzelem = div(nrealelem, nvertelem)
 
+    # The following view allows Q to have more states than the matrix A.  For
+    # the other states A is treated as the identity matrix.
+    data = @view Q.data[:, 1:nstate, :]
+
     event = Event(device)
     event = band_forward_kernel!(device, (Nq, Nqj))(
         Q.data,
@@ -184,6 +188,10 @@ function band_back!(Q, A, dg::DGModel)
     nrealelem = length(topology.elems)
     nvertelem = topology.stacksize
     nhorzelem = div(nrealelem, nvertelem)
+
+    # The following view allows Q to have more states than the matrix A.  For
+    # the other states A is treated as the identity matrix.
+    data = @view Q.data[:, 1:nstate, :]
 
     event = Event(device)
     event = band_back_kernel!(device, (Nq, Nqj))(
