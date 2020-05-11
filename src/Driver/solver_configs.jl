@@ -185,7 +185,11 @@ function SolverConfiguration(
             state_gradient_flux = dg.state_gradient_flux,
             states_higher_order = dg.states_higher_order,
         )
-        slow_dg = remainder_DGModel(dg, (fast_dg,); ode_solver_type.kwargs...)
+        slow_dg = remainder_DGModel(
+            dg,
+            (fast_dg,);
+            ode_solver_type.remainder_kwargs...,
+        )
         slow_solver = ode_solver_type.slow_method(slow_dg, Q; dt = ode_dt)
         fast_dt = ode_dt / ode_solver_type.timestep_ratio
         fast_solver = ode_solver_type.fast_method(fast_dg, Q; dt = fast_dt)
