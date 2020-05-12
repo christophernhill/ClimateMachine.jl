@@ -301,6 +301,15 @@ function LS.doiteration!(
     threshold,
     args...,
 )
+    # Get device and groupsize information
+    if isa(gmres.b, Array)
+        device = CPU()
+        groupsize = Threads.nthreads()
+    else
+        device = CUDA()
+        groupsize = 256
+    end
+
     # initialize gmres.x
     convert_structure!(gmres.x, Q, gmres.reshape_tuple_f, gmres.permute_tuple_f)
     # apply linear operator to construct residual
@@ -331,13 +340,25 @@ function LS.doiteration!(
         gmres.permute_tuple_f,
     )
     # initialize the rest of gmres
-    event = initialize_gmres!(gmres)
-    wait(event)
+    event = Event(device)
+    event = initialize_gmres_kernel!(device, groupsize)(
+        gmres;
+        ndrange = gmres.n,
+        dependencies=(Event(device),),
+    )
+    wait(device, event)
+
     ar, rr = compute_residuals(gmres, 1)
     # check if converged
     if (ar < gmres.atol) || (rr < gmres.rtol)
-        event = construct_solution!(1, gmres)
-        wait(event)
+        event = construct_solution_kernel!(device, groupsize)(
+            1,
+            gmres;
+            ndrange = size(gmres.x),
+            dependencies=(Event(device),),
+        )
+        wait(device, event)
+
         convert_structure!(
             Q,
             gmres.x,
@@ -361,13 +382,26 @@ function LS.doiteration!(
             gmres.reshape_tuple_f,
             gmres.permute_tuple_f,
         )
-        event = gmres_update!(i, gmres)
-        wait(event)
+
+        event = gmres_update_kernel!(device, groupsize)(
+            i,
+            gmres;
+            ndrange = gmres.n,
+            dependencies=(Event(device),),
+        )
+        wait(device, event)
+
         ar, rr = compute_residuals(gmres, i)
         # check if converged
         if (ar < gmres.atol) || (rr < gmres.rtol)
-            event = construct_solution!(i, gmres)
-            wait(event)
+            event = construct_solution_kernel!(device, groupsize)(
+                i,
+                gmres;
+                ndrange = size(gmres.x),
+                dependencies=(Event(device),),
+            )
+            wait(device, event)
+
             convert_structure!(
                 Q,
                 gmres.x,
@@ -378,8 +412,14 @@ function LS.doiteration!(
         end
     end
 
-    event = construct_solution!(gmres.k_n, gmres)
-    wait(event)
+    event = construct_solution_kernel!(device, groupsize)(
+        gmres.k_n,
+        gmres;
+        ndrange = gmres.n,
+        dependencies=(Event(device),),
+    )
+    wait(device, event)
+
     convert_structure!(Q, gmres.x, gmres.reshape_tuple_b, gmres.permute_tuple_b)
     ar, rr = compute_residuals(gmres, gmres.k_n)
     converged = (ar < gmres.atol) || (rr < gmres.rtol)
@@ -505,107 +545,6 @@ kernel object from KernelAbstractions
         tmp += gmres.Q[M, j, I] * gmres.sol[j, I]
     end
     gmres.x[M, I] += tmp # since previously gmres.x held the initial value
-end
-
-# Configuration for Kernels
-"""
-initialize_gmres!(gmres; ndrange = gmres.n, cpu_threads = Threads.nthreads(), gpu_threads = 256)
-
-# Description
-Uses the initialize_gmres_kernel! for initalizing
-
-# Arguments
-- `gmres`: (struct) [OVERWRITTEN]
-
-# Keyword Arguments
-- `ndrange`: (int) or (tuple) thread structure to iterate over
-- `cpu_threads`: (int) number of cpu threads. default = Threads.nthreads()
-- `gpu_threads`: (int) number of gpu threads. default = 256
-
-# Return
-event. A KernelAbstractions object
-"""
-function initialize_gmres!(
-    gmres::BatchedGeneralizedMinimalResidual;
-    ndrange = gmres.n,
-    cpu_threads = Threads.nthreads(),
-    gpu_threads = 256,
-)
-    if isa(gmres.b, Array)
-        kernel! = initialize_gmres_kernel!(CPU(), cpu_threads)
-    else
-        kernel! = initialize_gmres_kernel!(CUDA(), gpu_threads)
-    end
-    event = kernel!(gmres, ndrange = ndrange)
-    return event
-end
-
-"""
-gmres_update!(i, gmres; ndrange = gmres.n, cpu_threads = Threads.nthreads(), gpu_threads = 256)
-
-# Description
-Calls the gmres_update_kernel!
-
-# Arguments
-- `i`: (int) iteration number
-- `gmres`: (struct) gmres struct
-
-# Keyword Arguments
-- `ndrange`: (int) or (tuple) thread structure to iterate over
-- `cpu_threads`: (int) number of cpu threads. default = Threads.nthreads()
-- `gpu_threads`: (int) number of gpu threads. default = 256
-
-# Return
-event. A KernelAbstractions object
-"""
-function gmres_update!(
-    i,
-    gmres;
-    ndrange = gmres.n,
-    cpu_threads = Threads.nthreads(),
-    gpu_threads = 256,
-)
-    if isa(gmres.b, Array)
-        kernel! = gmres_update_kernel!(CPU(), cpu_threads)
-    else
-        kernel! = gmres_update_kernel!(CUDA(), gpu_threads)
-    end
-    event = kernel!(i, gmres, ndrange = ndrange)
-    return event
-end
-
-"""
-construct_solution!(i, gmres; ndrange = size(gmres.x), cpu_threads = Threads.nthreads(), gpu_threads = 256)
-
-# Description
-Calls construct_solution_kernel! for constructing the solution
-
-# Arguments
-- `i`: (int) iteration number
-- `gmres`: (struct) gmres struct
-
-# Keyword Arguments
-- `ndrange`: (int) or (tuple) thread structure to iterate over
-- `cpu_threads`: (int) number of cpu threads. default = Threads.nthreads()
-- `gpu_threads`: (int) number of gpu threads. default = 256
-
-# Return
-event. A KernelAbstractions object
-"""
-function construct_solution!(
-    i,
-    gmres;
-    ndrange = size(gmres.x),
-    cpu_threads = Threads.nthreads(),
-    gpu_threads = 256,
-)
-    if isa(gmres.b, Array)
-        kernel! = construct_solution_kernel!(CPU(), cpu_threads)
-    else
-        kernel! = construct_solution_kernel!(CUDA(), gpu_threads)
-    end
-    event = kernel!(i, gmres, ndrange = ndrange)
-    return event
 end
 
 # Helper Functions
