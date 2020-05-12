@@ -211,10 +211,10 @@ function BatchedGeneralizedMinimalResidual(
     dim = dimensionality(grid)
 
     # Number of Gauss-Lobatto quadrature points in 1D
-    Nglp = polynomialorder(grid) + 1
+    Nq = polynomialorder(grid) + 1
 
     # Assumes same number of quadrature points in all spatial directions
-    Nq = Tuple([Nglp for i in 1:dim])
+    Np = Tuple([Nq for i in 1:dim])
 
     # Number of states and elements (in vertical and horizontal directions)
     num_states = size(Q)[2]
@@ -223,7 +223,8 @@ function BatchedGeneralizedMinimalResidual(
     nhorzelem = div(nelem, nvertelem)
 
     # Definition of a "column" here is a vertical stack of degrees
-    # of freedom (linear element, 1 cells in a physical mesh column):
+    # of freedom. For example, consider a mesh consisting of a single
+    # linear element:
     #    o----------o
     #    |\ d1   d2 |\
     #    | \        | \
@@ -234,23 +235,25 @@ function BatchedGeneralizedMinimalResidual(
     #      \ |        \ |
     #       \|d7    d8 \|
     #        o----------o
-    # with a total of Nglp ^ 2 * num_states * nvertelem
-    # degrees of freedom per physical mesh column
-    reshaping_tup = (Nq..., num_states, nvertelem, nhorzelem)
+    # There are 4 total 1-D columns, each containing two
+    # degrees of freedom. In general, a mesh of stacked elements will
+    # have `Nq^2 * nhorzelem` total 1-D columns.
+    # A single 1-D column has `Nq * nvertelem * num_states`
+    # degrees of freedom.
+    reshaping_tup = (Np..., num_states, nvertelem, nhorzelem)
 
     if independent_states
-        m = Nglp * nvertelem
-        n = (Nglp^(dim - 1)) * nhorzelem * num_states
+        m = Nq * nvertelem
+        n = (Nq^(dim - 1)) * nhorzelem * num_states
     else
-        m = Nglp * nvertelem * num_states
-        n = (Nglp^(dim - 1)) * nhorzelem
+        m = Nq * nvertelem * num_states
+        n = (Nq^(dim - 1)) * nhorzelem
     end
 
     if max_subspace_size === nothing
         max_subspace_size = m
     end
 
-    # permute_tuple_f = (3, 5, 4, 2, 1, 6)
     # Now we need to determine an appropriate permutation
     # of the MPIStateArray to perform column-wise strides.
     # Total size of the permute tuple
@@ -258,7 +261,7 @@ function BatchedGeneralizedMinimalResidual(
 
     # Index associated with number of GL points
     # in the 'vertical' direction
-    nql = length(Nq)
+    nql = length(Np)
     # Want: (index associated with GL pts in vertical direction,
     #        index associated with the stack size of the column,
     #        index associated with number of states)
@@ -344,7 +347,7 @@ function LS.doiteration!(
     event = initialize_gmres_kernel!(device, groupsize)(
         gmres;
         ndrange = gmres.n,
-        dependencies=(Event(device),),
+        dependencies = (Event(device),),
     )
     wait(device, event)
 
@@ -355,7 +358,7 @@ function LS.doiteration!(
             1,
             gmres;
             ndrange = size(gmres.x),
-            dependencies=(Event(device),),
+            dependencies = (Event(device),),
         )
         wait(device, event)
 
@@ -387,7 +390,7 @@ function LS.doiteration!(
             i,
             gmres;
             ndrange = gmres.n,
-            dependencies=(Event(device),),
+            dependencies = (Event(device),),
         )
         wait(device, event)
 
@@ -398,7 +401,7 @@ function LS.doiteration!(
                 i,
                 gmres;
                 ndrange = size(gmres.x),
-                dependencies=(Event(device),),
+                dependencies = (Event(device),),
             )
             wait(device, event)
 
@@ -416,7 +419,7 @@ function LS.doiteration!(
         gmres.k_n,
         gmres;
         ndrange = gmres.n,
-        dependencies=(Event(device),),
+        dependencies = (Event(device),),
     )
     wait(device, event)
 
