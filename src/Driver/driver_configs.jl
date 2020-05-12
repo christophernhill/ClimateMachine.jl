@@ -39,12 +39,14 @@ struct MultirateSolverType <: AbstractSolverType
     slow_method::Function
     fast_method::Function
     timestep_ratio::Int
+    remainder_kwargs::NamedTuple
     function MultirateSolverType(;
         linear_model = AtmosAcousticGravityLinearModel,
         solver_method = MultirateRungeKutta,
         slow_method = LSRK54CarpenterKennedy,
         fast_method = LSRK54CarpenterKennedy,
         timestep_ratio = 100,
+        remainder_kwargs = NamedTuple(),
     )
         return new(
             linear_model,
@@ -52,6 +54,7 @@ struct MultirateSolverType <: AbstractSolverType
             slow_method,
             fast_method,
             timestep_ratio,
+            remainder_kwargs,
         )
     end
 end
