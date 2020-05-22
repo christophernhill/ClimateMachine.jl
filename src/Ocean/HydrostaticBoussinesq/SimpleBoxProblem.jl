@@ -208,5 +208,7 @@ cool-warm north-south linear temperature gradient
 """
 @inline function temperature_flux(p::OceanGyre, y, θ)
     θʳ = p.θᴱ * (1 - y / p.Lʸ)
-    return p.λʳ * (θʳ - θ)
+    #CNH return p.λʳ * (θʳ - θ)
+    FT = eltype(θ)
+    return FT(0)
 end

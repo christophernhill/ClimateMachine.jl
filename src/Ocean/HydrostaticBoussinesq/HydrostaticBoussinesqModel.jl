@@ -254,7 +254,8 @@ this computation is done pointwise at each nodal point
     D.ν∇u = ν * G.∇u
 
     κ = diffusivity_tensor(m, G.∇θ[3])
-    D.κ∇θ = κ * G.∇θ
+    #CNH D.κ∇θ = κ * G.∇θ
+    D.κ∇θ = κ * G.∇θ * 0
 
     return nothing
 end
@@ -437,16 +438,16 @@ t -> time, not used
         ]
 
         # ∇h • (g η)
-        F.u += _grav * η * Iʰ
+        #CNH F.u += _grav * η * Iʰ
 
         # ∇h • (- ∫(αᵀ θ))
-        F.u += _grav * pkin * Iʰ
+        #CNH F.u += _grav * pkin * Iʰ
 
         # ∇h • (v ⊗ u)
         # F.u += v * u'
 
         # ∇ • (u θ)
-        F.θ += v * θ
+        #CNH F.θ += v * θ
     end
 
     return nothing
@@ -516,9 +517,9 @@ end
 
         # f × u
         f = coriolis_force(m, A.y)
-        S.u -= @SVector [-f * v, f * u]
+        #CNH S.u -= @SVector [-f * v, f * u]
 
-        S.η += wz0
+        #CNH S.η += wz0
     end
 
     return nothing
@@ -587,11 +588,11 @@ function update_auxiliary_state!(
         # required to ensure that after integration velocity field is divergence free
         vert_filter = MD.vert_filter
         # Q[1] = u[1] = u, Q[2] = u[2] = v
-        apply!(Q, (1, 2), dg.grid, vert_filter, VerticalDirection())
+        #CNH apply!(Q, (1, 2), dg.grid, vert_filter, VerticalDirection())
 
         exp_filter = MD.exp_filter
         # Q[4] = θ
-        apply!(Q, (4,), dg.grid, exp_filter, VerticalDirection())
+        #CNH apply!(Q, (4,), dg.grid, exp_filter, VerticalDirection())
     end
 
     return true
