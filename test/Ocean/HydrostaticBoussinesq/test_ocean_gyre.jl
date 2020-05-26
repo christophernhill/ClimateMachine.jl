@@ -55,7 +55,7 @@ function test_ocean_gyre(; imex::Bool = false, BC = nothing, Δt = 60)
     timestart = FT(0)    # s
     # timeend = FT(36000) # s
     timeend = FT(14400) # s
-    timeend = FT(864000) # s
+    timeend = FT(8640000) # s
 
     if imex
         solver_type =
@@ -86,7 +86,7 @@ function test_ocean_gyre(; imex::Bool = false, BC = nothing, Δt = 60)
         Courant_number = Courant_number,
     )
 
-    ntFreq=10
+    ntFreq=50
     cb=ClimateMachine.StateCheck.sccreate( [ (solver_config.Q,"Q",),
                                               (solver_config.dg.state_auxiliary,"s_aux",),
                                               (solver_config.dg.state_gradient_flux,"s_gflux",) ],
@@ -120,8 +120,8 @@ end
     ]
 
     for BC in boundary_conditions
-        test_ocean_gyre(imex = false, BC = BC, Δt = 800)
-        test_ocean_gyre(imex = false, BC = BC, Δt = 1800)
+#       test_ocean_gyre(imex = false, BC = BC, Δt = 800)
+#       test_ocean_gyre(imex = false, BC = BC, Δt = 1800)
         test_ocean_gyre(imex = false, BC = BC, Δt = 3600)
     end
 end
