@@ -22,6 +22,7 @@ function config_simple_box(FT, N, resolution, dimensions; BC = nothing)
 
     _grav::FT = grav(param_set)
     cʰ = sqrt(_grav * problem.H) # m/s
+    cʰ = 0.
     model = HydrostaticBoussinesqModel{FT}(param_set, problem, cʰ = cʰ)
 
     config = ClimateMachine.OceanBoxGCMConfiguration(
@@ -52,7 +53,9 @@ function test_ocean_gyre(; imex::Bool = false, BC = nothing, Δt = 60)
     dimensions = (Lˣ, Lʸ, H)
 
     timestart = FT(0)    # s
-    timeend = FT(36000) # s
+    # timeend = FT(36000) # s
+    timeend = FT(14400) # s
+    timeend = FT(864000) # s
 
     if imex
         solver_type =
@@ -83,7 +86,15 @@ function test_ocean_gyre(; imex::Bool = false, BC = nothing, Δt = 60)
         Courant_number = Courant_number,
     )
 
-    result = ClimateMachine.invoke!(solver_config)
+    ntFreq=10
+    cb=ClimateMachine.StateCheck.sccreate( [ (solver_config.Q,"Q",),
+                                              (solver_config.dg.state_auxiliary,"s_aux",),
+                                              (solver_config.dg.state_gradient_flux,"s_gflux",) ],
+                                            ntFreq; prec=12 )
+
+    result = ClimateMachine.invoke!(solver_config; user_callbacks=[cb] )
+
+    # result = ClimateMachine.invoke!(solver_config)
 
     @test true
 end
@@ -101,9 +112,16 @@ end
             ClimateMachine.HydrostaticBoussinesq.OceanSurfaceStressForcing(),
         ),
     ]
+    boundary_conditions = [         (
+            ClimateMachine.HydrostaticBoussinesq.CoastlineNoSlip(),
+            ClimateMachine.HydrostaticBoussinesq.OceanFloorNoSlip(),
+            ClimateMachine.HydrostaticBoussinesq.OceanSurfaceNoStressNoForcing(),
+        ),
+    ]
 
     for BC in boundary_conditions
-        test_ocean_gyre(imex = false, BC = BC, Δt = 600)
-        test_ocean_gyre(imex = true, BC = BC, Δt = 150)
+        test_ocean_gyre(imex = false, BC = BC, Δt = 800)
+        test_ocean_gyre(imex = false, BC = BC, Δt = 1800)
+        test_ocean_gyre(imex = false, BC = BC, Δt = 3600)
     end
 end

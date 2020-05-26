@@ -88,16 +88,26 @@ struct HydrostaticBoussinesqModel{PS, P, T} <: BalanceLaw
     function HydrostaticBoussinesqModel{FT}(
         param_set::PS,
         problem;
-        ρₒ = FT(1000),  # kg / m^3
+        # ρₒ = FT(1000),  # kg / m^3
+        # cʰ = FT(0),     # m/s
+        # cᶻ = FT(0),     # m/s
+        # αᵀ = FT(2e-4),  # (m/s)^2 / K
+        # νʰ = FT(5e3),   # m^2 / s
+        # νᶻ = FT(5e-3),  # m^2 / s
+        # κʰ = FT(1e3),   # m^2 / s
+        # κᶻ = FT(1e-4),  # m^2 / s
+        # fₒ = FT(1e-4),  # Hz
+        # β = FT(1e-11), # Hz / m
+        ρₒ = FT(0),     # kg / m^3
         cʰ = FT(0),     # m/s
         cᶻ = FT(0),     # m/s
-        αᵀ = FT(2e-4),  # (m/s)^2 / K
-        νʰ = FT(5e3),   # m^2 / s
-        νᶻ = FT(5e-3),  # m^2 / s
-        κʰ = FT(1e3),   # m^2 / s
+        αᵀ = FT(0),     # (m/s)^2 / K
+        νʰ = FT(1.E-9), # m^2 / s
+        νᶻ = FT(1.E-9), # m^2 / s
+        κʰ = FT(0),     # m^2 / s
         κᶻ = FT(1e-4),  # m^2 / s
-        fₒ = FT(1e-4),  # Hz
-        β = FT(1e-11), # Hz / m
+        fₒ = FT(0),     # Hz
+        β = FT(0),     # Hz / m
     ) where {FT <: AbstractFloat, PS}
         return new{PS, typeof(problem), FT}(
             param_set,
