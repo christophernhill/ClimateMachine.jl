@@ -181,6 +181,7 @@ function ocean_init_state!(p::OceanGyre, Q, A, coords, t)
     Q.u = @SVector [0, 0]
     Q.η = 0
     Q.θ = (5 + 4 * cos(y * π / p.Lʸ)) * (1 + z / H)
+    Q.θ = (9) * (1 + z / H)
 
     return nothing
 end
