@@ -179,7 +179,14 @@ function dostep!(
     # reset fast time-step to original value
     updatedt!(fast, fast_dt_in)
 
-    # insert implicit vertical diffusion here
+    # insert implicit 1d vertical diffusion for each column here
+    # something like
+    #     Q.dg.θ.=Qslow.dg.θ
+    #     Qrhs.dg.θ.=Qslow.dg.θ
+    #     iters = linearsolve!(linearoperator!, linearsolver, Q, Qrhs)
+    # where linearoperator is the model in linear_model.jl [ https://github.com/christophernhill/ClimateMachine.jl/blob/cnh/impl_diff-jmc/split_explicit_draft/test/Ocean/SplitExplicit/linear_model.jl ]
+    #       linearsolver is BatchedGeneralizedMinimalResidual [ https://github.com/CliMA/ClimateMachine.jl/blob/231921abb1c7e081dc038c51e5e43368d4ec1a4d/src/Numerics/SystemSolvers/batched_generalized_minimal_residual_solver.jl#L168 ] e.g. linearsolver = BatchedGeneralizedMinimalResidual(...);
+    #       linearsolve is something like [ linearoperator!(Qtt, Qhat, args...) ] ( haven't groked why function SystemSolvers.linearsolve!( in test/ looks the way it does yet.... TBD
 
     return nothing
 end
