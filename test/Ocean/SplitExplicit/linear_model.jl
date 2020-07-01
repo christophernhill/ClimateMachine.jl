@@ -88,9 +88,18 @@ end
     t,
 )
 
-    κ = diffusivity_tensor(m.parent_om, G.θ[3])
+    κ = diffusivity_tensor(m, G.θ[3])
     D.κ∇θ = κ * G.θ
 
     return nothing
 end
+
+@inline function diffusivity_tensor(m::om_ivdc_lm, ∂θ∂z)
+  # ∂θ∂z < 0 ? κ = (@SVector [m.κʰ, m.κʰ, 1000 * m.κᶻ]) : κ =
+    ∂θ∂z < 0 ? κ = (@SVector [0, 0, 1 * m.κᶻ]) : κ =
+        (@SVector [0, 0, m.κᶻ])
+
+    return Diagonal(κ)
+end
+
 
