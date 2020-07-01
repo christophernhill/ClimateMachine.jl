@@ -36,11 +36,16 @@ end
 """
 
 # Base state variables, u, η, θ
+# Do I really want u and η hanging around, it seems like they may get computed on too
+# in the gradient kernels?
+# Do I really wany to inherit from parent - probably not I think.
+# Somewhere I need to iterate on a θ^{n+1}. It seems like doing that in the main θ could be annoying
 vars_state_conservative(lm:om_ivdc_lm, FT) = 
     vars_state_conservative(lm.parent_om, FT)
 
 # Gradient variables, u, ud, θ (velocity is split into two versions one holding full (u) and one 
 # holding deviation from barotropic (ud) )
+# Do I really want to reuse G.∇θ here. I guess that saves memory, but it could be confusing.
 vars_state_gradient(lm:om_ivdc_lm, FT) = 
     vars_state_gradient(lm.parent_om, FT)
 
@@ -74,6 +79,8 @@ this computation is done pointwise at each nodal point
 )
     G.∇θ = Q.θ
 
+#   What about G.∇η and G.∇u? Do these need to be set to zero?
+
     return nothing
 end
 
@@ -101,5 +108,9 @@ end
 
     return Diagonal(κ)
 end
+
+# Need to add something to control hidden numerical flux computations
+
+# What about bc's - these are zero flux, so probably OK.
 
 
