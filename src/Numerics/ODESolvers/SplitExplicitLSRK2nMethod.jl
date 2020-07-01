@@ -179,5 +179,7 @@ function dostep!(
     # reset fast time-step to original value
     updatedt!(fast, fast_dt_in)
 
+    # insert implicit vertical diffusion here
+
     return nothing
 end

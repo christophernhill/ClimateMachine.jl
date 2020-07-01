@@ -49,6 +49,23 @@ vars_state_gradient_flux(lm::om_ivdc_lm, FT) = @vars(κ∇θ::SVector{3, T})
 vars_state_auxiliary(lm::om_ivdc_lm, FT) = @vars()
 vars_integrals(lm::om_ivdc_lm, FT) = @vars()
 
+# Set an initial value to zero to be clean for any statistics - 
+# This will get overwritten by copy of parent model θ before use
+# or some other first guess value.
+function init_state_conservative!(
+    m::om_ivdc_lm,
+    state!::Vars,
+    aux::Vars,
+    coords,
+    t,
+)
+  @inbounds begin
+    state!.θ = 0.
+  end
+  return nothing
+end
+
+
 """
     compute_gradient_argument!(::om_ivdc_lm)
 
