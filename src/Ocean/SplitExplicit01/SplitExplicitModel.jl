@@ -96,6 +96,7 @@ include("OceanModel.jl")
 include("Continuity3dModel.jl")
 include("VerticalIntegralModel.jl")
 include("BarotropicModel.jl")
+include("IVDCModel.jl")
 include("Communication.jl")
 include("OceanBoundaryConditions.jl")
 

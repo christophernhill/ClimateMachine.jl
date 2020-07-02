@@ -179,6 +179,8 @@ function dostep!(
     # reset fast time-step to original value
     updatedt!(fast, fast_dt_in)
 
+    ivdc_dg=slow.rhs!.modeldata.ivdc_dg
+    ivdc_Q=slow.rhs!.modeldata.ivdc_Q
     # insert implicit 1d vertical diffusion for each column here
     # something like
     #     Q.dg.θ.=Qslow.dg.θ

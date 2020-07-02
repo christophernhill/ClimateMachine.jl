@@ -373,7 +373,7 @@ end
 FT = Float64
 vtkpath = "vtk_split"
 
-const timeend = 15 * 24 * 3600 # s
+const timeend = 5 * 24 * 3600 # s
 const tout = 24 * 3600 # s
 #const timeend = 4 * 300 # s
 #const tout = 300 # s
