@@ -49,13 +49,13 @@ vars_state_conservative(m::IVDCModel,FT) = @vars(θ::FT)
 
 function init_state_conservative!(
     m::IVDCModel,
-    state::Vars,
-    aux::Vars,
+    Q::Vars,
+    A::Vars,
     coords,
     t,
 )
   @inbounds begin
-    state.θ = -0
+    Q.θ = -0
   end
   return nothing
 end
@@ -66,7 +66,7 @@ init_state_auxiliary!(m::IVDCModel, _...) = nothing
 
 # Variables and operations used in differentiating first derivatives
 
-vars_state_gradient(m::IVDCModel, FT) = @vars(θ::FT)
+vars_state_gradient(m::IVDCModel, FT) = @vars(∇θ::FT)
 
 @inline function compute_gradient_argument!(
     m::IVDCModel,
@@ -75,8 +75,8 @@ vars_state_gradient(m::IVDCModel, FT) = @vars(θ::FT)
     A,
     t,
 )
-    G.θ = Q.θ
-    G.θ = -0
+    G.∇θ = Q.θ
+    G.∇θ = -0
 
     return nothing
 end
@@ -95,9 +95,9 @@ vars_state_gradient_flux(m::IVDCModel, FT) = @vars(κ∇θ::SVector{3, FT})
     t,
 )
 
-    κ = diffusivity_tensor(m, G.θ[3])
-    D.κ∇θ = κ * G.θ
-    D.κ∇θ = -0
+    κ = diffusivity_tensor(m, G.∇θ[3])
+    D.κ∇θ = -κ * G.∇θ
+    D.κ∇θ = -κ * G.∇θ * 0.
 
     return nothing
 end
@@ -105,8 +105,9 @@ end
 
 @inline function diffusivity_tensor(m::IVDCModel, ∂θ∂z)
   # ∂θ∂z < 0 ? κ = (@SVector [m.κʰ, m.κʰ, 1000 * m.κᶻ]) : κ =
-    ∂θ∂z < 0 ? κ = (@SVector [0, 0, 1 * m.κᶻ]) : κ =
-        (@SVector [0, 0, m.κᶻ])
+    κᶻ=m.parent_om.κᶻ
+    ∂θ∂z < 0 ? κ = (@SVector [0, 0, 1 * κᶻ]) : κ =
+        (@SVector [0, 0, κᶻ])
 
     return Diagonal(κ)
 end
@@ -130,8 +131,34 @@ end
     return nothing
 end
 
+## Numerical fluxes and boundaries
 
-# Need to add something to control hidden numerical flux computations
-# and penalty function
+###### NEED TO FIX THIS
+boundary_state!(nf, m::IVDCModel, _...) = nothing
+
+function flux_first_order!(::IVDCModel, _...) end
+
+function flux_second_order!(
+    ::IVDCModel,
+    F::Grad,
+    S::Vars,
+    D::Vars,
+    H::Vars,
+    A::Vars,
+    t::Real,
+)
+    F.θ += D.κ∇θ
+
+end
+
+
+
+# Need to add penalty function and/or numerical flux control
+#
+function wavespeed(m::IVDCModel, n⁻, _...)
+    C = abs(SVector(m.parent_om.cʰ, m.parent_om.cʰ, m.parent_om.cᶻ)' * n⁻)
+    return C
+end
+
 
 # What about bc's - these are zero flux, so probably OK.

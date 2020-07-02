@@ -181,6 +181,18 @@ function dostep!(
 
     ivdc_dg=slow.rhs!.modeldata.ivdc_dg
     ivdc_Q=slow.rhs!.modeldata.ivdc_Q
+#        slow.rhs!(dQ2fast, Qslow, param, slow_stage_time, increment = false)
+#   lets try evaluating ivdc_dg operator
+#   divdc is returned as result of rhs evaluation
+#   ivdc_Q is input
+#   param is from "dostep"
+#   t can be any time, its not used
+#   increment=false stops anything being added to ivdc_Q I think
+    println( typeof(dQ2fast) )
+    dQivdc = deepcopy(ivdc_Q)
+    ivdc_dg(dQivdc, ivdc_Q, param, time, increment=false)
+    println( typeof(dQivdc) )
+    exit()
     # insert implicit 1d vertical diffusion for each column here
     # something like
     #     Q.dg.θ.=Qslow.dg.θ
