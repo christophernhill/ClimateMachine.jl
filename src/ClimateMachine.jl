@@ -32,8 +32,6 @@ include(joinpath(
     "HydrostaticBoussinesq",
     "HydrostaticBoussinesqModel.jl",
 ))
-include(joinpath("Ocean", "SplitExplicit", "SplitExplicitModel.jl"))
-include(joinpath("Ocean", "SplitExplicit01", "SplitExplicitModel.jl"))
 include(joinpath("Numerics", "SystemSolvers", "SystemSolvers.jl"))
 include(joinpath("Numerics", "ODESolvers", "GenericCallbacks.jl"))
 include(joinpath("Numerics", "ODESolvers", "ODESolvers.jl"))
@@ -46,5 +44,7 @@ include(joinpath("Utilities", "Checkpoint", "Checkpoint.jl"))
 include(joinpath("Utilities", "Callbacks", "Callbacks.jl"))
 include(joinpath("Driver", "Driver.jl"))
 
+include(joinpath("Ocean", "SplitExplicit", "SplitExplicitModel.jl"))
+include(joinpath("Ocean", "SplitExplicit01", "SplitExplicitModel.jl"))
 
 end

@@ -60,7 +60,7 @@ function init_state_conservative!(
   return nothing
 end
 
-vars_state_auxiliary(m::IVDCModel, FT) = @vars()
+vars_state_auxiliary(m::IVDCModel, FT) = @vars(θ_rhs::FT)
 init_state_auxiliary!(m::IVDCModel, _...) = nothing
 
 

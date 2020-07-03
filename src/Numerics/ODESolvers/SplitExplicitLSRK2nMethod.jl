@@ -192,6 +192,10 @@ function dostep!(
     dQivdc = deepcopy(ivdc_Q)
     ivdc_dg(dQivdc, ivdc_Q, param, time, increment=false)
     println( typeof(dQivdc) )
+    println( typeof(dQivdc).parameters[2].names )
+    println( size(Qslow.θ) )
+    ivdc_Q.θ .= Qslow.θ
+    ivdc_dg.state_auxiliary.θ_rhs .= Qslow.θ
     exit()
     # insert implicit 1d vertical diffusion for each column here
     # something like

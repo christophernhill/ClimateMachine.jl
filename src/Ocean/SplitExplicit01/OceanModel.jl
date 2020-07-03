@@ -114,7 +114,12 @@ function OceanDGModel(
 	direction=VerticalDirection,
     )
     FT = eltype(grid)
-    ivdc_Q = init_ode_state(ivdc_dg, FT(0); init_on_cpu = true) # Not sure this is needed since we set values, but just in case!
+    ivdc_Q = init_ode_state(ivdc_dg, FT(0); init_on_cpu = true) # Not sure this is needed since we set values later, 
+                                                                # but we'll do it just in case!
+ 
+    ivdc_bgm_solver=BatchedGeneralizedMinimalResidual(
+        ivdc_dg,
+	ivdc_Q)
 
     modeldata = (
         vert_filter = vert_filter,
@@ -125,6 +130,7 @@ function OceanDGModel(
         conti3d_Q = conti3d_Q,
 	ivdc_dg = ivdc_dg,
 	ivdc_Q = ivdc_Q,
+	ivdc_bgm_solver=ivdc_bgm_solver,
     )
 
     return DGModel(

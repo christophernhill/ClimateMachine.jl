@@ -62,6 +62,9 @@ import ..DGMethods:
     reverse_integral_load_auxiliary_state!,
     reverse_integral_set_auxiliary_state!
 
+import ..SystemSolvers:
+    BatchedGeneralizedMinimalResidual
+
 ×(a::SVector, b::SVector) = StaticArrays.cross(a, b)
 ∘(a::SVector, b::SVector) = StaticArrays.dot(a, b)
 
