@@ -120,7 +120,7 @@ end
     Q::Vars,
     D::Vars,
     A::Vars,
-    t::Real,
+    t,
     direction,
 )
     @inbounds begin
@@ -145,7 +145,7 @@ function flux_second_order!(
     D::Vars,
     H::Vars,
     A::Vars,
-    t::Real,
+    t,
 )
     F.θ += D.κ∇θ
 

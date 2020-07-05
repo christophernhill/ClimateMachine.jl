@@ -179,32 +179,20 @@ function dostep!(
     # reset fast time-step to original value
     updatedt!(fast, fast_dt_in)
 
+    # Implicit diffusion for convection
+    # Get DG model that is solver operator, its state vector and solver function
     ivdc_dg=slow.rhs!.modeldata.ivdc_dg
     ivdc_Q=slow.rhs!.modeldata.ivdc_Q
-#        slow.rhs!(dQ2fast, Qslow, param, slow_stage_time, increment = false)
-#   lets try evaluating ivdc_dg operator
-#   divdc is returned as result of rhs evaluation
-#   ivdc_Q is input
-#   param is from "dostep"
-#   t can be any time, its not used
-#   increment=false stops anything being added to ivdc_Q I think
-    println( typeof(dQ2fast) )
-    dQivdc = deepcopy(ivdc_Q)
-    ivdc_dg(dQivdc, ivdc_Q, param, time, increment=false)
-    println( typeof(dQivdc) )
-    println( typeof(dQivdc).parameters[2].names )
-    println( size(Qslow.θ) )
-    ivdc_Q.θ .= Qslow.θ
-    ivdc_dg.state_auxiliary.θ_rhs .= Qslow.θ
-    exit()
-    # insert implicit 1d vertical diffusion for each column here
-    # something like
-    #     Q.dg.θ.=Qslow.dg.θ
-    #     Qrhs.dg.θ.=Qslow.dg.θ
-    #     iters = linearsolve!(linearoperator!, linearsolver, Q, Qrhs)
-    # where linearoperator is the model in linear_model.jl [ https://github.com/christophernhill/ClimateMachine.jl/blob/cnh/impl_diff-jmc/split_explicit_draft/test/Ocean/SplitExplicit/linear_model.jl ]
-    #       linearsolver is BatchedGeneralizedMinimalResidual [ https://github.com/CliMA/ClimateMachine.jl/blob/231921abb1c7e081dc038c51e5e43368d4ec1a4d/src/Numerics/SystemSolvers/batched_generalized_minimal_residual_solver.jl#L168 ] e.g. linearsolver = BatchedGeneralizedMinimalResidual(...);
-    #       linearsolve is something like [ linearoperator!(Qtt, Qhat, args...) ] ( haven't groked why function SystemSolvers.linearsolve!( in test/ looks the way it does yet.... TBD
+    ivdc_solver=slow.rhs!.modeldata.ivdc_bgm_solver
 
+    # Now solve for θ that satisifies ivdc_dg, use current θ as initial guess
+    ivdc_Q.θ .= Qslow.θ
+    dQivdc  = deepcopy(ivdc_Q)
+    dQivdc.θ .= Qslow.θ
+    # param and time do nothing below, but are needed for DG function signature mapping
+    iters = linearsolve!(ivdc_dg, ivdc_solver, ivdc_Q, dQivdc, param, time)
+    println( "iters=", iters )
+
+    ### exit()
     return nothing
 end
