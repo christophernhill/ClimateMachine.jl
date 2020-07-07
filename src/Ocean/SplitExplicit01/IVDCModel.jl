@@ -2,6 +2,10 @@
 # convective adjustment step.
 #
 # In this version the operator is tweked to be the indentity for testing
+
+using ClimateMachine.DGMethods.NumericalFluxes:
+    NumericalFluxFirstOrder, NumericalFluxSecondOrder, NumericalFluxGradient
+
 """
  IVDCModel{M} <: BalanceLaw
 
@@ -76,7 +80,7 @@ vars_state_gradient(m::IVDCModel, FT) = @vars(∇θ::FT)
     t,
 )
     G.∇θ = Q.θ
-    G.∇θ = -0
+#    G.∇θ = -0
 
     return nothing
 end
@@ -97,7 +101,7 @@ vars_state_gradient_flux(m::IVDCModel, FT) = @vars(κ∇θ::SVector{3, FT})
 
     κ = diffusivity_tensor(m, G.∇θ[3])
     D.κ∇θ = -κ * G.∇θ
-    D.κ∇θ = -κ * G.∇θ * 0.
+#    D.κ∇θ = -κ * G.∇θ * 0.
 
     return nothing
 end
@@ -106,6 +110,8 @@ end
 @inline function diffusivity_tensor(m::IVDCModel, ∂θ∂z)
   # ∂θ∂z < 0 ? κ = (@SVector [m.κʰ, m.κʰ, 1000 * m.κᶻ]) : κ =
     κᶻ=m.parent_om.κᶻ
+    κᶻ=1000
+    κᶻ=0.1
     ∂θ∂z < 0 ? κ = (@SVector [0, 0, 1 * κᶻ]) : κ =
         (@SVector [0, 0, κᶻ])
 
@@ -126,15 +132,13 @@ end
     @inbounds begin
      # S!.θ=Q.θ/m.parent_om.dt_slow
      S.θ=Q.θ
+     # S.θ=0
     end
 
     return nothing
 end
 
 ## Numerical fluxes and boundaries
-
-###### NEED TO FIX THIS
-boundary_state!(nf, m::IVDCModel, _...) = nothing
 
 function flux_first_order!(::IVDCModel, _...) end
 
@@ -151,14 +155,80 @@ function flux_second_order!(
 
 end
 
-
-
-# Need to add penalty function and/or numerical flux control
-#
 function wavespeed(m::IVDCModel, n⁻, _...)
     C = abs(SVector(m.parent_om.cʰ, m.parent_om.cʰ, m.parent_om.cᶻ)' * n⁻)
     return C
 end
 
 
-# What about bc's - these are zero flux, so probably OK.
+function boundary_state!(
+    nf::Union{NumericalFluxFirstOrder, NumericalFluxGradient, CentralNumericalFluxGradient},
+    m::IVDCModel,
+    Q⁺,
+    A⁺,
+    n,
+    Q⁻,
+    A⁻,
+    bctype,
+    t,
+    _...,
+)
+    Q⁺.θ = Q⁻.θ
+
+    return nothing
+end
+
+###    From -  function numerical_boundary_flux_gradient! , DGMethods/NumericalFluxes.jl
+###    boundary_state!(
+###        numerical_flux,
+###        balance_law,
+###        state_conservative⁺,
+###        state_auxiliary⁺,
+###        normal_vector,
+###        state_conservative⁻,
+###        state_auxiliary⁻,
+###        bctype,
+###        t,
+###        state1⁻,
+###        aux1⁻,
+###    )
+
+
+function boundary_state!(
+    nf::Union{NumericalFluxSecondOrder,CentralNumericalFluxSecondOrder},
+    m::IVDCModel,
+    Q⁺,
+    D⁺,
+    A⁺,
+    n⁻,
+    Q⁻,
+    D⁻,
+    A⁻,
+    bctype,
+    t,
+    _...,
+)
+    Q⁺.θ = Q⁻.θ
+    D⁺.κ∇θ = n⁻ * -0
+    # D⁺.κ∇θ = -D⁻.κ∇θ
+
+    return nothing
+end
+
+###    boundary_state!(
+###        numerical_flux,
+###        balance_law,
+###        state_conservative⁺,
+###        state_gradient_flux⁺,
+###        state_auxiliary⁺,
+###        normal_vector,
+###        state_conservative⁻,
+###        state_gradient_flux⁻,
+###        state_auxiliary⁻,
+###        bctype,
+###        t,
+###        state1⁻,
+###        diff1⁻,
+###        aux1⁻,
+###    )
+

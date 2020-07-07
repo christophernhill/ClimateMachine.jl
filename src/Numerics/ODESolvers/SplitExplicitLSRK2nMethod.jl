@@ -7,6 +7,8 @@ using ..BalanceLaws:
     cummulate_fast_solution!,
     reconcile_from_fast_to_slow!
 
+# using Plots
+
 LSRK2N = LowStorageRungeKutta2N
 
 @doc """
@@ -182,17 +184,41 @@ function dostep!(
     # Implicit diffusion for convection
     # Get DG model that is solver operator, its state vector and solver function
     ivdc_dg=slow.rhs!.modeldata.ivdc_dg
+    println("numerical_flux_second_order =",ivdc_dg.numerical_flux_second_order)
+    # exit()
     ivdc_Q=slow.rhs!.modeldata.ivdc_Q
     ivdc_solver=slow.rhs!.modeldata.ivdc_bgm_solver
 
-    # Now solve for θ that satisifies ivdc_dg, use current θ as initial guess
+    # Now solve for θ that satisifies ivdc_dg, use current θ as initial guess as well as RHS
     ivdc_Q.θ .= Qslow.θ
+
+    # Debug view
+    nn=5;ne=20;
+    nnh=nn*nn;nnz=nn;       # Nodes
+    neh=ne*ne;nez=ne;       # Elements
+    pz_xyecol=400 # Element col
+    pz_xyncol=1   # Nodal col
+    phi=reshape(ivdc_Q.θ,nnh,nnz,nez,neh)
+    grid_nd=reshape(ivdc_dg.grid.vgeo,(nn*nn,nn,16,ne,ne*ne) )
+    zvals_raw=grid_nd[:,:,15,:,:]
+    zc=zvals_raw[pz_xyncol,:,:,pz_xyecol]
+
     dQivdc  = deepcopy(ivdc_Q)
     dQivdc.θ .= Qslow.θ
-    # param and time do nothing below, but are needed for DG function signature mapping
-    iters = linearsolve!(ivdc_dg, ivdc_solver, ivdc_Q, dQivdc, param, time)
-    println( "iters=", iters )
+    # Lets see if we can solve something
+    ivdc_Q.θ .= 0
 
-    ### exit()
+    println(phi[pz_xyncol,:,:,pz_xyecol] )
+
+    # param and time do nothing below, but are needed for DG function signature mapping
+    solve_time=@elapsed iters = linearsolve!(ivdc_dg, ivdc_solver, ivdc_Q, dQivdc, param, time)
+
+    # Some checking
+    println( "iters=", iters, ", solve time = ", solve_time )
+    # 1. print a column of numbers 
+    println(phi[pz_xyncol,:,:,pz_xyecol] )
+#     savefig( scatter( phi[pz_xyncol,:,:,pz_xyecol],zc ), "fooo.png" )
+
+    exit()
     return nothing
 end
