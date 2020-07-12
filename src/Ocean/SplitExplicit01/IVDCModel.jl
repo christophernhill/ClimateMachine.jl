@@ -119,9 +119,11 @@ end
   # ∂θ∂z < 0 ? κ = (@SVector [m.κʰ, m.κʰ, 1000 * m.κᶻ]) : κ =
     κᶻ=m.parent_om.κᶻ
     κᶻ=0.1
-    s=1e-4
+    κᶻ=1
+    s=0
     ∂θ∂z <= 0+1e-10 ? κ = (@SVector [0, 0, -1 * κᶻ]) : κ =
         (@SVector [0, 0, -s * κᶻ])
+
 
     return Diagonal(κ)
 end
@@ -165,10 +167,10 @@ function flux_second_order!(
 end
 
 function wavespeed(m::IVDCModel, n⁻, _...)
-    # C = abs(SVector(m.parent_om.cʰ, m.parent_om.cʰ, m.parent_om.cᶻ)' * n⁻)
+    C = abs(SVector(m.parent_om.cʰ, m.parent_om.cʰ, m.parent_om.cᶻ)' * n⁻)
     # C = abs(SVector(m.parent_om.cʰ, m.parent_om.cʰ, 50)' * n⁻)
     # C = abs(SVector(1, 1, 1)' * n⁻)
-    C = abs(SVector(10, 10, 10)' * n⁻)
+    ### C = abs(SVector(10, 10, 10)' * n⁻)
     # C = abs(SVector(50, 50, 50)' * n⁻)
     # C = abs(SVector( 0,  0,  0)' * n⁻)
     return C
