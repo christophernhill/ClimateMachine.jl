@@ -324,6 +324,7 @@ const θᴱ = 10    # K
     dQivdc.θ.=Qin.θ./ivdc_solver_dt
 
     Qout.θ.=Qin.θ
+    odesolver.slow_solver.rhs!.modeldata.ivdc_dg.state_auxiliary.θ_init.=Qin.θ
     QP=Qout
     tz=reshape(QP.θ,(Np1*Np1,Np1,Nᶻ,Nˣ*Nʸ) )[1,:,:,1]
     savefig( scatter(tz,zc,label="") , "fooBGM-guess.png" )
@@ -332,21 +333,34 @@ const θᴱ = 10    # K
     tz=reshape(QP.θ,(Np1*Np1,Np1,Nᶻ,Nˣ*Nʸ) )[1,:,:,1]
     savefig( scatter(tz,zc,label="") , "fooBGM-b.png" )
 
+    # Solve once
     solve_time=@elapsed iters = linearsolve!(lm!, bgmSolver, Qout, dQivdc);
     println("solver iters, time: ",iters, ", ", solve_time)
 
     # Step forward iteratively a few times
     dQivdc.θ.=Qout.θ./ivdc_solver_dt
+    odesolver.slow_solver.rhs!.modeldata.ivdc_dg.state_auxiliary.θ_init.=Qout.θ
     #### Qout.θ.=Qin.θ
     solve_time=@elapsed iters = linearsolve!(lm!, bgmSolver, Qout, dQivdc);
     println("solver iters, time: ",iters, ", ", solve_time)
 
+    # Step forward iteratively a few times
     dQivdc.θ.=Qout.θ./ivdc_solver_dt
+    odesolver.slow_solver.rhs!.modeldata.ivdc_dg.state_auxiliary.θ_init.=Qout.θ
     #### Qout.θ.=Qin.θ
     solve_time=@elapsed iters = linearsolve!(lm!, bgmSolver, Qout, dQivdc);
     println("solver iters, time: ",iters, ", ", solve_time)
 
+    # Step forward iteratively a few times
     dQivdc.θ.=Qout.θ./ivdc_solver_dt
+    odesolver.slow_solver.rhs!.modeldata.ivdc_dg.state_auxiliary.θ_init.=Qout.θ
+    #### Qout.θ.=Qin.θ
+    solve_time=@elapsed iters = linearsolve!(lm!, bgmSolver, Qout, dQivdc);
+    println("solver iters, time: ",iters, ", ", solve_time)
+
+    # Step forward iteratively a few times
+    dQivdc.θ.=Qout.θ./ivdc_solver_dt
+    odesolver.slow_solver.rhs!.modeldata.ivdc_dg.state_auxiliary.θ_init.=Qout.θ
     #### Qout.θ.=Qin.θ
     solve_time=@elapsed iters = linearsolve!(lm!, bgmSolver, Qout, dQivdc);
     println("solver iters, time: ",iters, ", ", solve_time)

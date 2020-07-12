@@ -111,7 +111,7 @@ function OceanDGModel(
         numfluxnondiff,
         numfluxdiff,
         gradnumflux;
-	direction=VerticalDirection,
+	direction=VerticalDirection(),
     )
     FT = eltype(grid)
     ivdc_Q = init_ode_state(ivdc_dg, FT(0); init_on_cpu = true) # Not sure this is needed since we set values later, 

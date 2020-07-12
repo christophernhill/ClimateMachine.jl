@@ -7,7 +7,7 @@ using ..BalanceLaws:
     cummulate_fast_solution!,
     reconcile_from_fast_to_slow!
 
-# using Plots
+using Plots
 
 LSRK2N = LowStorageRungeKutta2N
 
@@ -184,41 +184,97 @@ function dostep!(
     # Implicit diffusion for convection
     # Get DG model that is solver operator, its state vector and solver function
     ivdc_dg=slow.rhs!.modeldata.ivdc_dg
-    println("numerical_flux_second_order =",ivdc_dg.numerical_flux_second_order)
-    # exit()
     ivdc_Q=slow.rhs!.modeldata.ivdc_Q
     ivdc_solver=slow.rhs!.modeldata.ivdc_bgm_solver
 
     # Now solve for θ that satisifies ivdc_dg, use current θ as initial guess as well as RHS
     ivdc_Q.θ .= Qslow.θ
+    # Set RHS
+    dQivdc  = deepcopy(ivdc_Q)
 
-    # Debug view
+    # Debug view info
     nn=5;ne=20;
     nnh=nn*nn;nnz=nn;       # Nodes
     neh=ne*ne;nez=ne;       # Elements
     pz_xyecol=400 # Element col
     pz_xyncol=1   # Nodal col
-    phi=reshape(ivdc_Q.θ,nnh,nnz,nez,neh)
+    phi=reshape(ivdc_Q.θ,nnh,nnz,1,nez,neh)
     grid_nd=reshape(ivdc_dg.grid.vgeo,(nn*nn,nn,16,ne,ne*ne) )
     zvals_raw=grid_nd[:,:,15,:,:]
     zc=zvals_raw[pz_xyncol,:,:,pz_xyecol]
 
-    dQivdc  = deepcopy(ivdc_Q)
-    dQivdc.θ .= Qslow.θ
-    # Lets see if we can solve something
-    ivdc_Q.θ .= 0
+    # Set test RHS
+    rhsQxyz=reshape(dQivdc.θ,(nn*nn,nn,1,ne,ne*ne) )
+    # Set unstable profile
+    H=4000.;L=H/10.;A=20.;C=50.;D=2.5;B=8.;E=5.e-4;
+    for ielz=1:ne
+     for inodez=1:nn
+      z=zvals_raw[1,inodez,ielz,1]
+      ft(xx,L)=exp(-xx/L);
+      th1(zz)=A*ft.(-zz .+ L, L);
+      th2(zz)=C*ft(D*(-zz .+ L), L);
+      phi1=th1.(z)
+      phi2=th2.(z)
+      # rhsQxyz[:,inodez,1,ielz,:].=phi1 .- phi2 .+ B .+ E .*z;
+      rhsQxyz[:,inodez,1,ielz,:].=z;
+     end
+    end
 
-    println(phi[pz_xyncol,:,:,pz_xyecol] )
+    x2=reshape(dQivdc.θ,nn*nn,nn,ne,ne*ne)[pz_xyncol,:,:,pz_xyecol]
+    savefig( scatter(     x2,zc,label="" ), "foooRHS.png" )
+
+    # Set DT (needs to be same in IVDC too)
+    ivdc_solve_dt=ivdc_dg.balance_law.ivdc_dt
+
 
     # param and time do nothing below, but are needed for DG function signature mapping
-    solve_time=@elapsed iters = linearsolve!(ivdc_dg, ivdc_solver, ivdc_Q, dQivdc, param, time)
+    lm!(y,x)=ivdc_dg(y,x,nothing,0;increment=false)
+
+    # Lets check applying the A operator once
+    # DGM( dQdt_out, Qin, params....)
+    #### ivdc_dg(ivdc_Q,dQivdc,nothing,0;increment=false)
+    #### x1=reshape(ivdc_Q.θ,nnh,nnz,1,nez,neh)[pz_xyncol,:,1,:,pz_xyecol]
+    #### savefig( scatter(     x1,zc,label="" ), "fooo.png" )
+    #### exit()
+
+    iters=0
+    solve_time=0
+    # Scale RHS by time step
+    dQivdc.θ .= dQivdc.θ./ivdc_solve_dt
+    # for ii=1:1
+
+     # Repeat same iter (set first guess)
+     ivdc_Q.θ .= dQivdc.θ.*ivdc_solve_dt
+     ivdc_Q.θ .= 0.
+
+     solve_time=@elapsed iters = linearsolve!(lm!, ivdc_solver, ivdc_Q, dQivdc)
+
+     # Multi-iter
+     # Set RHS to new solution
+     # dQivdc.θ .= ivdc_Q.θ
+     # Rescale RHS to use again
+     # dQivdc.θ .= dQivdc.θ/ivdc_solve_dt
+
+     println( "iters=", iters, ", solve time = ", solve_time )
+    # end
+    dQivdc.θ .= dQivdc.θ.*ivdc_solve_dt
 
     # Some checking
     println( "iters=", iters, ", solve time = ", solve_time )
     # 1. print a column of numbers 
-    println(phi[pz_xyncol,:,:,pz_xyecol] )
-#     savefig( scatter( phi[pz_xyncol,:,:,pz_xyecol],zc ), "fooo.png" )
+    println( reshape(dQivdc.θ,nnh,nnz,1,nez,neh)[pz_xyncol,:,1,:,pz_xyecol] )
+    println( reshape(ivdc_Q.θ,nnh,nnz,1,nez,neh)[pz_xyncol,:,1,:,pz_xyecol] )
+
+    x1=reshape(ivdc_Q.θ,nnh,nnz,1,nez,neh)[pz_xyncol,:,1,:,pz_xyecol]
+    savefig( scatter(     x1,zc,label="" ), "fooo.png" )
+
+    x2=rhsQxyz[pz_xyncol,:,1,:,pz_xyecol]
+    savefig( scatter(    x2,zc,label="" ), "foooRHSafter.png" )
+
+    savefig( scatter(x1.-x2,zc,label="" ), "foooDIFF.png" )
 
     exit()
     return nothing
 end
+
+# linearoperator!(y, x) = dg(y, x, nothing, 0; increment = false)

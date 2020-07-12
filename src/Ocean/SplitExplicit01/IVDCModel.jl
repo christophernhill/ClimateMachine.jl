@@ -29,8 +29,12 @@ using ClimateMachine.DGMethods.NumericalFluxes:
 # (Not sure we need parent, but maybe we will get some parameters from it)
 struct IVDCModel{M} <: AbstractOceanModel
   parent_om::M
-  function IVDCModel(parent_om::M) where {M}
-    return new{M}(parent_om)
+  ivdc_dt::Float64
+  function IVDCModel(
+     parent_om::M; 
+     ivdc_dt=1080,
+    ) where {M}
+     return new{M}(parent_om, ivdc_dt, )
   end
 end
 
@@ -64,13 +68,18 @@ function init_state_conservative!(
   return nothing
 end
 
-vars_state_auxiliary(m::IVDCModel, FT) = @vars(θ_rhs::FT)
-init_state_auxiliary!(m::IVDCModel, _...) = nothing
+vars_state_auxiliary(m::IVDCModel, FT) = @vars(θ_init::FT)
+function init_state_auxiliary!(m::IVDCModel,A::Vars, _...)
+  @inbounds begin
+    A.θ_init = -0
+  end
+  return nothing
+end
 
 
 # Variables and operations used in differentiating first derivatives
 
-vars_state_gradient(m::IVDCModel, FT) = @vars(∇θ::FT)
+vars_state_gradient(m::IVDCModel, FT) = @vars(∇θ::FT, ∇θ_init::FT,)
 
 @inline function compute_gradient_argument!(
     m::IVDCModel,
@@ -80,7 +89,7 @@ vars_state_gradient(m::IVDCModel, FT) = @vars(∇θ::FT)
     t,
 )
     G.∇θ = Q.θ
-#    G.∇θ = -0
+    G.∇θ_init = A.θ_init
 
     return nothing
 end
@@ -99,9 +108,8 @@ vars_state_gradient_flux(m::IVDCModel, FT) = @vars(κ∇θ::SVector{3, FT})
     t,
 )
 
-    κ = diffusivity_tensor(m, G.∇θ[3])
+    κ = diffusivity_tensor(m, G.∇θ_init[3])
     D.κ∇θ = -κ * G.∇θ
-#    D.κ∇θ = -κ * G.∇θ * 0.
 
     return nothing
 end
@@ -110,10 +118,10 @@ end
 @inline function diffusivity_tensor(m::IVDCModel, ∂θ∂z)
   # ∂θ∂z < 0 ? κ = (@SVector [m.κʰ, m.κʰ, 1000 * m.κᶻ]) : κ =
     κᶻ=m.parent_om.κᶻ
-    κᶻ=1000
     κᶻ=0.1
-    ∂θ∂z < 0 ? κ = (@SVector [0, 0, 1 * κᶻ]) : κ =
-        (@SVector [0, 0, κᶻ])
+    s=1e-4
+    ∂θ∂z <= 0+1e-10 ? κ = (@SVector [0, 0, -1 * κᶻ]) : κ =
+        (@SVector [0, 0, -s * κᶻ])
 
     return Diagonal(κ)
 end
@@ -131,7 +139,7 @@ end
 )
     @inbounds begin
      # S!.θ=Q.θ/m.parent_om.dt_slow
-     S.θ=Q.θ
+     S.θ=Q.θ/m.ivdc_dt
      # S.θ=0
     end
 
@@ -152,11 +160,17 @@ function flux_second_order!(
     t,
 )
     F.θ += D.κ∇θ
+    # F.θ = 0
 
 end
 
 function wavespeed(m::IVDCModel, n⁻, _...)
-    C = abs(SVector(m.parent_om.cʰ, m.parent_om.cʰ, m.parent_om.cᶻ)' * n⁻)
+    # C = abs(SVector(m.parent_om.cʰ, m.parent_om.cʰ, m.parent_om.cᶻ)' * n⁻)
+    # C = abs(SVector(m.parent_om.cʰ, m.parent_om.cʰ, 50)' * n⁻)
+    # C = abs(SVector(1, 1, 1)' * n⁻)
+    C = abs(SVector(10, 10, 10)' * n⁻)
+    # C = abs(SVector(50, 50, 50)' * n⁻)
+    # C = abs(SVector( 0,  0,  0)' * n⁻)
     return C
 end
 
@@ -210,6 +224,7 @@ function boundary_state!(
 )
     Q⁺.θ = Q⁻.θ
     D⁺.κ∇θ = n⁻ * -0
+#    D⁺.κ∇θ = n⁻ * -0 + 7000
     # D⁺.κ∇θ = -D⁻.κ∇θ
 
     return nothing
@@ -224,6 +239,26 @@ end
 ###        normal_vector,
 ###        state_conservative⁻,
 ###        state_gradient_flux⁻,
+###        state_auxiliary⁻,
+###        bctype,
+###        t,
+###        state1⁻,
+###        diff1⁻,
+###        aux1⁻,
+###    )
+
+###    boundary_flux_second_order!(
+###        numerical_flux,
+###        balance_law,
+###        Grad{S}(flux),
+###        state_conservative⁺,
+###        state_gradient_flux⁺,
+###        state_hyperdiffusive⁺,
+###        state_auxiliary⁺,
+###        normal_vector,
+###        state_conservative⁻,
+###        state_gradient_flux⁻,
+###        state_hyperdiffusive⁻,
 ###        state_auxiliary⁻,
 ###        bctype,
 ###        t,
