@@ -44,7 +44,7 @@ if !@isdefined integration_testing
     )
 end
 
-const output_vtk = false
+const output_vtk = true
 
 function main()
     ClimateMachine.init()

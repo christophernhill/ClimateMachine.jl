@@ -123,7 +123,8 @@ function OceanDGModel(
     ivdc_bgm_solver=BatchedGeneralizedMinimalResidual(
         ivdc_dg,
 	ivdc_Q;
-	max_subspace_size=10)
+	max_subspace_size=10,
+        independent_states=false )
 
     modeldata = (
         vert_filter = vert_filter,

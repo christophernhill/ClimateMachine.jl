@@ -9,6 +9,8 @@ using ..BalanceLaws:
 
 LSRK2N = LowStorageRungeKutta2N
 
+using MPI
+
 @doc """
     SplitExplicitLSRK2nSolver(slow_solver, fast_solver; dt, t0 = 0, coupled = true)
 
@@ -201,7 +203,14 @@ function dostep!(
     solve_tot=0
     iter_tot=0
     for i=1:nrep
-     solve_time=@elapsed iters = linearsolve!(lm!, ivdc_solver, ivdc_Q, ivdc_RHS);
+     ## solve_time=@elapsed iters = linearsolve!(lm!, ivdc_solver, ivdc_Q, ivdc_RHS);
+     solve_time=0
+     iters     =0
+     ### iters = linearsolve!(lm!, ivdc_solver, ivdc_Q, ivdc_RHS);
+     if ( MPI.Comm_rank(ivdc_Q.mpicomm) == 0 )
+      ### iters = linearsolve!(lm!, ivdc_solver, ivdc_Q, ivdc_RHS);
+      ivdc_dg(ivdc_Q,ivdc_RHS,nothing,0;increment=false)
+     end
      solve_tot=solve_tot+solve_time
      iter_tot=iter_tot+iters
      # Set new RHS and initial values
@@ -215,7 +224,7 @@ function dostep!(
 
     # exit()
     # Now update
-    Qslow.θ .= ivdc_Q.θ
+    # Qslow.θ .= ivdc_Q.θ
 
 
     return nothing

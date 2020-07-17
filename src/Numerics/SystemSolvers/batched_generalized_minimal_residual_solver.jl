@@ -226,7 +226,7 @@ function BatchedGeneralizedMinimalResidual(
 
     # Number of states and elements (in vertical and horizontal directions)
     num_states = size(Q)[2]
-    nelem = length(topology.elems)
+    nelem = length(topology.realelems)
     nvertelem = topology.stacksize
     nhorzelem = div(nelem, nvertelem)
 
@@ -487,9 +487,9 @@ end
 
 # MPIStateArray dispatch
 @inline convert_structure!(x, y::MPIStateArray, reshape_tuple, permute_tuple) =
-    convert_structure!(x, y.data, reshape_tuple, permute_tuple)
+    convert_structure!(x, y.realdata, reshape_tuple, permute_tuple)
 @inline convert_structure!(x::MPIStateArray, y, reshape_tuple, permute_tuple) =
-    convert_structure!(x.data, y, reshape_tuple, permute_tuple)
+    convert_structure!(x.realdata, y, reshape_tuple, permute_tuple)
 
 # Kernels
 """
