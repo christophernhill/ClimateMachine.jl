@@ -23,9 +23,10 @@ brickrange=( xOrderedEdgeList, yOrderedEdgeList )
 topl = BrickTopology(
        mpicomm,
        brickrange;
-       periodicity=(true,true),
-#      boundary=((1,1),(1,1)),
-       boundary=((0,0),(0,0)),
+#      periodicity=(true,true),
+#      boundary=((0,0),(0,0)),
+       periodicity=(false,false),
+       boundary=((1,1),(1,1)),
 )
 
 Np=4
@@ -49,12 +50,12 @@ using ..OCNCADJEEquationSet
 const xDecayLength=FT(Lx/6)
 const yDecayLength=FT(Ly/6)
 function init_theta(x::FT,y::FT,z::FT,n,e)
- xAmp=exp(  -( ( (x - xmid)/xDecayLength )^2 )  )
- yAmp=exp(  -( ( (y - ymid)/yDecayLength )^2 )  )
- yAmp=1.
-
+ # xAmp=exp(  -( ( (x - xmid)/xDecayLength )^2 )  )
+ # yAmp=exp(  -( ( (y - ymid)/yDecayLength )^2 )  )
  # yAmp=1.
- # xAmp=x   # Linear ramp
+
+ yAmp=1.
+ xAmp=x   # Linear ramp
  return FT(xAmp*yAmp)
 end
 
@@ -124,8 +125,8 @@ using ClimateMachine.Mesh.Elements: interpolationmatrix
 dt=(mgrid.vgeo[2,13,1])^2/0.1*0.5*0.20
 println("tic")
 # anim = @animate
-anim = @animate for iter=1:100
-# println(iter)
+anim = @animate for iter=1:1000
+println(iter)
 oml_Q.θ.=oml_Q.θ-dt.*dQ.θ
 
 nelem = size(dQ)[end]
