@@ -12,7 +12,8 @@ xOrderedEdgeList=[0,3]
 # yOrderedEdgeList=[0,1,2,3,4,5,6,7,8,9,10]
 # zOrderedEdgeList=[-10,-9,-8,-7,-6,-5,-4,-3,-2,-1,0]
 yOrderedEdgeList=[0,10]
-zOrderedEdgeList=[-10,0]
+# zOrderedEdgeList=[-10,0]
+zOrderedEdgeList=[-3,-2,-1,0]
 
 f(x)=0.5*(x[1]+x[end])
 xmid=f(xOrderedEdgeList)
@@ -54,14 +55,17 @@ using ..OCNCADJEEquationSet
 """
 const xDecayLength=FT(Lx/6)
 const yDecayLength=FT(Ly/6)
+const zDecayLength=FT(Lz/6)
 function init_theta(x::FT,y::FT,z::FT,n,e)
  # xAmp=exp(  -( ( (x - xmid)/xDecayLength )^2 )  )
  # yAmp=exp(  -( ( (y - ymid)/yDecayLength )^2 )  )
- # yAmp=1.
+ zAmp=exp(  -( ( (z - zmid)/zDecayLength )^2 )  )
+ xAmp=1.
+ yAmp=1.
 
  yAmp=1.
  xAmp=1. 
- zAmp=z   # Linear ramp
+ zAmp=z+20   # Linear ramp + offset to make it more theta like!
  return FT(xAmp*yAmp*zAmp)
 end
 
@@ -94,6 +98,10 @@ function get_wavespeed()
   return FT(0.)
 end
 
+function get_penalty_tau()
+  return FT(1.)
+end
+
 # Add customizations to properties
 bl_prop=OCNCADJEEquationSet.prop_defaults()
 bl_prop=(bl_prop...,   init_aux_geom=init_aux_geom)
@@ -101,6 +109,7 @@ bl_prop=(bl_prop...,      init_theta=init_theta   )
 bl_prop=(bl_prop...,    source_theta=source_theta )
 bl_prop=(bl_prop..., calc_kappa_diff=calc_kappa_diff )
 bl_prop=(bl_prop...,   get_wavespeed=get_wavespeed )
+bl_prop=(bl_prop..., get_penalty_tau=get_penalty_tau )
 
 # Create an equation set with the cutomized function and parameter properties
 oml=OCNCADJEEquationSet.OCNCADJEEquations{Float64}(;bl_prop=bl_prop)
@@ -124,7 +133,7 @@ oml_dg(dQ,oml_Q, nothing, 0; increment=false)
 println(oml_Q.θ)
 println(dQ.θ)
 
-exit()
+# exit()
 
 θ_0=deepcopy(oml_Q.θ)
 
@@ -135,21 +144,21 @@ println( sum(sum(M.*oml_Q.θ[:,1,:],dims=1)./sum(M , dims = 1)) )
 using Plots
 using ClimateMachine.Mesh.Elements: interpolationmatrix
 
-dt=(mgrid.vgeo[2,13,1])^2/0.1*0.5*0.20
-println("tic")
-# anim = @animate
-anim = @animate for iter=1:1000
-println(iter)
-oml_Q.θ.=oml_Q.θ-dt.*dQ.θ
-
-nelem = size(dQ)[end]
-# fld=dQ.θ
-fld=oml_Q.θ
+## Get some grid variables
 dim = dimensionality(mgrid)
 N = polynomialorders(mgrid)
+Npx=(polynomialorders(mgrid)[1]+1)
+Npy=(polynomialorders(mgrid)[1]+1)
+Npz=(polynomialorders(mgrid)[1]+1)
 Nq = N .+ 1
-sp=range(-0.98;length=40,stop=0.98)
-FT=eltype(fld)
+dxmin=minimum(mgrid.vgeo[2,13,:]-mgrid.vgeo[1,13,:])
+dymin=minimum(mgrid.vgeo[Npx+1,14,:]-mgrid.vgeo[1,14,:])
+dzmin=minimum(mgrid.vgeo[Npx*Npy+1,15,:]-mgrid.vgeo[1,15,:])
+dlmin=minimum([dxmin,dymin,dzmin])
+
+## Set interpolation
+nsp=20
+sp=range(-0.98;length=nsp,stop=0.98)
 ξ = ntuple(
      i -> N[i] == 0 ? FT.([-1, 1]) : referencepoints(mgrid)[i],
      dim,
@@ -157,25 +166,54 @@ FT=eltype(fld)
 ξdst=sp
 I1d = ntuple(i -> interpolationmatrix(ξ[dim - i + 1], ξdst), dim)
 I = kron(I1d...)
-global fldsp=I*fld[:,1,:]
-global fldsp2=I*θ_0[:,1,:]
-global X=ntuple(i -> I*mgrid.x_vtk[i], length(mgrid.x_vtk) )
-i=1;plot(reshape(X[1][:,i],(40,40))[:,20],reshape(fldsp[:,i],(40,40))[:,20] )
-i=2;plot!(reshape(X[1][:,i],(40,40))[:,20],reshape(fldsp[:,i],(40,40))[:,20] )
-i=2;plot!(reshape(X[1][:,i],(40,40))[:,20],reshape(fldsp2[:,i],(40,40))[:,20] )
-i=3;plot!(reshape(X[1][:,i],(40,40))[:,20],reshape(fldsp[:,i],(40,40))[:,20] )
-# scatter(X[1],X[2],fldsp,camera=(0,90),zcolor=fldsp,size=(1200,800),label="",markerstrokewidth=0,markershape=:rect)
-oml_dg(dQ,oml_Q, nothing, 0; increment=false);
+
+## Get interpolated grid locations
+X=ntuple(i -> I*mgrid.x_vtk[i], length(mgrid.x_vtk) )
+
+## Choose dt
+dt_cfl_diff=dlmin^2/0.1*0.5
+dt_penalty_diff=dlmin/1.0*0.5
+
+dt=minimum([dt_cfl_diff,dt_penalty_diff])
+
+## Set points to plot
+fshp=ntuple(i -> nsp,dim,)
+s1=Int(round(nsp/2))        # Coord 1 points
+s2=Int(round(nsp/2))        # Coord 2 points
+s3=1:nsp                    # Coord 3 points
+ci=3                        # Coordinate index of the non-constant coordinate
+xpts(i)=reshape(X[ci][:,i],fshp )[s1,s2,s3] # x-axis coordinates for non-constant coordinate
+
+## 
+mean_value_0=sum(sum(M.*oml_Q.θ[:,1,:],dims=1)./sum(M , dims = 1))
+println("tic")
+# anim = @animate
+anim = @animate for iter=1:1000
+ println(iter)
+ oml_Q.θ.=oml_Q.θ-dt.*dQ.θ
+
+ nelem = size(dQ)[end]
+ # fld=dQ.θ
+ fld=oml_Q.θ
+
+ global fldsp=I*fld[:,1,:]
+ global fldsp2=I*θ_0[:,1,:]
+ i=1;plot( xpts(i) ,reshape(fldsp[ :,i],fshp )[s1,s2,s3] )
+ i=2;plot!(xpts(i) ,reshape(fldsp[ :,i],fshp )[s1,s2,s3] )
+ i=2;plot!(xpts(i) ,reshape(fldsp2[:,i],fshp )[s1,s2,s3] )
+ i=3;plot!(xpts(i) ,reshape(fldsp[ :,i],fshp )[s1,s2,s3] )
+ oml_dg(dQ,oml_Q, nothing, 0; increment=false);
+
 end
 println("toc")
 
-println( sum(sum(M.*oml_Q.θ[:,1,:],dims=1)./sum(M , dims = 1)) )
+println( sum(sum(M.*oml_Q.θ[:,1,:],dims=1)./sum(M , dims = 1)) - mean_value_0 )
 
 gif(anim, "anim_fps15.gif", fps = 15)
 
-i=1;plot(reshape(X[1][:,i],(40,40))[:,20],reshape(fldsp[:,i],(40,40))[:,20] )
-i=2;plot!(reshape(X[1][:,i],(40,40))[:,20],reshape(fldsp[:,i],(40,40))[:,20] )
-i=3;plot!(reshape(X[1][:,i],(40,40))[:,20],reshape(fldsp[:,i],(40,40))[:,20] )
+## i=1;plot(reshape(X[1][:,i],(40,40))[:,20],reshape(fldsp[:,i],(40,40))[:,20] )
+## i=2;plot!(reshape(X[1][:,i],(40,40))[:,20],reshape(fldsp[:,i],(40,40))[:,20] )
+## i=3;plot!(reshape(X[1][:,i],(40,40))[:,20],reshape(fldsp[:,i],(40,40))[:,20] )
 
 
 # Try some timestepping
