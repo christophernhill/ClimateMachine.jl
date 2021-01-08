@@ -98,8 +98,9 @@ function get_wavespeed()
   return FT(0.)
 end
 
+const ptau = 1.
 function get_penalty_tau()
-  return FT(1.)
+  return FT(ptau)
 end
 
 # Add customizations to properties
@@ -172,7 +173,7 @@ X=ntuple(i -> I*mgrid.x_vtk[i], length(mgrid.x_vtk) )
 
 ## Choose dt
 dt_cfl_diff=dlmin^2/0.1*0.5
-dt_penalty_diff=dlmin/1.0*0.5
+dt_penalty_diff=dlmin/ptau*0.5
 
 dt=minimum([dt_cfl_diff,dt_penalty_diff])
 
