@@ -11,9 +11,9 @@ mpicomm = MPI.COMM_WORLD;
 xOrderedEdgeList=[0,3]
 # yOrderedEdgeList=[0,1,2,3,4,5,6,7,8,9,10]
 # zOrderedEdgeList=[-10,-9,-8,-7,-6,-5,-4,-3,-2,-1,0]
-yOrderedEdgeList=[0,10]
+yOrderedEdgeList=[0,5,10]
 # zOrderedEdgeList=[-10,0]
-zOrderedEdgeList=[-3,-2,-1,0]
+zOrderedEdgeList=[-4,-3,-2,-1,0]
 
 f(x)=0.5*(x[1]+x[end])
 xmid=f(xOrderedEdgeList)
@@ -142,6 +142,10 @@ M = view(mgrid.vgeo, :, mgrid.Mid, :)
 println( sum(sum(M.*oml_Q.θ[:,1,:],dims=1)./sum(M , dims = 1)) )
 
 # Make some plots
+# For now for plotting lets assume we have a YZ slice
+# and a stacked topology.
+# Then node indexing in an element is x then y then z and
+# across elements it is z then y.
 using Plots
 using ClimateMachine.Mesh.Elements: interpolationmatrix
 
@@ -170,10 +174,25 @@ I = kron(I1d...)
 
 ## Get interpolated grid locations
 X=ntuple(i -> I*mgrid.x_vtk[i], length(mgrid.x_vtk) )
+# Get axes for contour plot
+x_lo_nodes_y=collect(range(1;step=nsp,length=nsp))
+x_lo_nodes_z=collect(range(1;step=nsp*nsp,length=nsp))
+
+Nex=length(xOrderedEdgeList)-1
+Ney=length(yOrderedEdgeList)-1
+Nez=length(zOrderedEdgeList)-1
+z_lo_elems_y=collect(range(1;step=Nez,length=Ney)) # Element numbers 
+                                                   # for line in Y
+                                                   
+x_lo_elems_z=collect(range(1;step=1,length=Nez))   # Element numbers
+                                                   # for line in Z
+
+y_points=X[2][x_lo_nodes_y,z_lo_elems_y][:]
+z_points=X[3][x_lo_nodes_z,x_lo_elems_z][:]
 
 ## Choose dt
-dt_cfl_diff=dlmin^2/0.1*0.5
-dt_penalty_diff=dlmin/ptau*0.5
+dt_cfl_diff=dlmin^2/0.1*0.333
+dt_penalty_diff=dlmin/ptau*0.333
 
 dt=minimum([dt_cfl_diff,dt_penalty_diff])
 
@@ -183,13 +202,15 @@ s1=Int(round(nsp/2))        # Coord 1 points
 s2=Int(round(nsp/2))        # Coord 2 points
 s3=1:nsp                    # Coord 3 points
 ci=3                        # Coordinate index of the non-constant coordinate
-xpts(i)=reshape(X[ci][:,i],fshp )[s1,s2,s3] # x-axis coordinates for non-constant coordinate
+xpts(i)=reshape(X[ci][:,i],fshp )[s1,s2,s3] # x-axis coordinates 
+                                            # for non-constant coordinate
+ypts(fld,i)=reshape(fld[ :,i],fshp )[s1,s2,s3]
 
 ## 
 mean_value_0=sum(sum(M.*oml_Q.θ[:,1,:],dims=1)./sum(M , dims = 1))
 println("tic")
 # anim = @animate
-anim = @animate for iter=1:1000
+anim = @animate for iter=1:10
  println(iter)
  oml_Q.θ.=oml_Q.θ-dt.*dQ.θ
 
@@ -199,11 +220,16 @@ anim = @animate for iter=1:1000
 
  global fldsp=I*fld[:,1,:]
  global fldsp2=I*θ_0[:,1,:]
- i=1;plot( xpts(i) ,reshape(fldsp[ :,i],fshp )[s1,s2,s3] )
- i=2;plot!(xpts(i) ,reshape(fldsp[ :,i],fshp )[s1,s2,s3] )
- i=2;plot!(xpts(i) ,reshape(fldsp2[:,i],fshp )[s1,s2,s3] )
- i=3;plot!(xpts(i) ,reshape(fldsp[ :,i],fshp )[s1,s2,s3] )
+ pargs(a,b)=b,a
+ i=1;plot(  pargs( xpts(i) ,ypts(fldsp ,i) ),  label=""  )
+ i=2;plot!( pargs( xpts(i) ,ypts(fldsp ,i) ) , label=""  )
+ i=2;plot!( pargs( xpts(i) ,ypts(fldsp2,i) ) , label=""  )
+ i=3;plot!( pargs( xpts(i) ,ypts(fldsp ,i) ) , label=""  )
  oml_dg(dQ,oml_Q, nothing, 0; increment=false);
+ # contour yz section command
+ # slyz=reshape(fldsp,(nsp,nsp,nsp,Nez,Ney))[s1,:,:,:,:]
+ # pf=permutedims(slyz,[1,4,2,3])
+ # contour(y_points,z_points,pf[:])
 
 end
 println("toc")
