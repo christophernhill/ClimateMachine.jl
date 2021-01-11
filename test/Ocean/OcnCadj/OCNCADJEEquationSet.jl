@@ -49,6 +49,7 @@ using ClimateMachine.DGMethods.NumericalFluxes:
       RusanovNumericalFlux
 
 import ClimateMachine.DGMethods.NumericalFluxes:
+       NumericalFluxSecondOrder,
        numerical_boundary_flux_second_order!,
        numerical_flux_second_order!
 
@@ -89,15 +90,17 @@ struct PenaltyNumFluxDiffusive <: NumericalFluxSecondOrder end
   - calc_kappa_diff :: function to set diffusion coeffiecient(s).
   - get_wavespeed   :: function to return a wavespeed for Rusanov computations (there aren't any in this model)
   - get_penalty_tau :: function to set timescale on which to bring state+ and state- together
+  - surface_flux :: function set boundary flux on k∇θ
 """
 function prop_defaults()
   bl_prop=NamedTuple()
-  bl_prop=( bl_prop...,init_aux_geom=nothing)
-  bl_prop=( bl_prop...,   init_theta=nothing)
-  bl_prop=( bl_prop..., source_theta=nothing)
+  bl_prop=( bl_prop...,init_aux_geom=nothing   )
+  bl_prop=( bl_prop...,   init_theta=nothing   )
+  bl_prop=( bl_prop..., source_theta=nothing   )
   bl_prop=( bl_prop..., calc_kappa_diff=nothing)
-  bl_prop=( bl_prop..., get_wavespeed=(0.) )
-  bl_prop=( bl_prop..., get_penalty_tau=(1.) )
+  bl_prop=( bl_prop..., get_wavespeed=(0.)     )
+  bl_prop=( bl_prop..., get_penalty_tau=(1.)   )
+  bl_prop=( bl_prop..., surface_flux=(0.)      )
 end
 
 """
@@ -200,9 +203,9 @@ end
 """
 function compute_gradient_flux!( e::eq_type, GF::Vars, G::Grad, Q::Vars, A::Vars, t )
   # "Non-linear" form (for time stepped)
-  κ¹,κ²,κ³=e.bl_prop.calc_kappa_diff(G.∇θ,A.npt,A.elnum,A.xc,A.yc,A.zc)
+  κ¹,κ²,κ³=e.bl_prop.calc_kappa_diff(G.∇θ,A.npt,A.elnum,A.xc,A.yc,A.zc,Q.θ)
   # "Linear" form (for implicit)
-  κ¹,κ²,κ³=e.bl_prop.calc_kappa_diff(G.∇θⁱⁿⁱᵗ,A.npt,A.elnum,A.xc,A.yc,A.zc)
+  ### κ¹,κ²,κ³=e.bl_prop.calc_kappa_diff(G.∇θⁱⁿⁱᵗ,A.npt,A.elnum,A.xc,A.yc,A.zc,Q.θ)
   # Maybe I should pass both G.∇θ and G.∇θⁱⁿⁱᵗ?
   GF.κ∇θ = Diagonal(@SVector([κ¹,κ²,κ³]))*G.∇θ
   nothing
@@ -220,7 +223,7 @@ end
   Define boundary condition flags/types to iterate over
 """
 function boundary_conditions( e::eq_type, _...)
- ( 1, )
+ ( 1, 2 )
 end
 
 """
@@ -243,7 +246,13 @@ end
 
 function boundary_state!(nF::Union{NumericalFluxSecondOrder}, bc, e::eq_type, Q⁺::Vars, GF⁺::Vars, A⁺::Vars,n⁻,Q⁻::Vars,GF⁻::Vars,A⁻::Vars,t,_...)
  Q⁺.θ=Q⁻.θ
- GF⁺.κ∇θ= n⁻ * -0
+ # GF⁺.κ∇θ= n⁻ * -0
+ if bc == 2
+  GF⁺.κ∇θ= n⁻ * e.bl_prop.surface_flux(A⁻.xc,A⁻.yc,A⁻.zc,Q⁻.θ)
+ end
+ if bc == 1
+  GF⁺.κ∇θ= n⁻ * -0
+ end
  nothing
 end
 
@@ -293,12 +302,12 @@ function numerical_flux_second_order!(
 
     Fᵀn = parent(fluxᵀn)
     FT = eltype(Fᵀn)
-    tau = e.bl_prop.get_penalty_tau()
+    tau = bl.bl_prop.get_penalty_tau()
     Fᵀn .-= tau * (parent(state⁻) - parent(state⁺))
 end
 
 # We are assuming zero gradient bc for now - so there is no numerical second order 
 # flux from boundary
-numerical_boundary_flux_second_order!(nf::PenaltyNumFluxDiffusive, _...) = nothing
+numerical_boundary_flux_second_order!(nf::PenaltyNumFluxDiffusive, varargs...) = numerical_boundary_flux_second_order!(CentralNumericalFluxSecondOrder(), varargs... )
 
 end
